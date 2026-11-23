@@ -1,5 +1,4 @@
 # Arquitectura de Microservicios - PC Hardware Store
-## Control 3 - Desarrollo Fullstack II (DSY1104)
 
 Este directorio contiene la arquitectura de **microservicios distribuidos** donde **cada una de las 5 entidades relacionales es un microservicio autónomo e independiente**, orquestados por un **API Gateway** centralizado con autenticación JWT y control de acceso basado en roles (RBAC).
 
