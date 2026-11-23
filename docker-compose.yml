@@ -1,0 +1,96 @@
+services:
+  gateway-api:
+    build:
+      context: ./gateway-api
+      dockerfile: Dockerfile
+    container_name: pchw-gateway-api
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVICES_USUARIO_URL=http://usuario-service:8081
+      - SERVICES_CATEGORIA_URL=http://categoria-service:8082
+      - SERVICES_PRODUCTO_URL=http://producto-service:8083
+      - SERVICES_BOLETA_URL=http://boleta-service:8084
+      - SERVICES_DETALLE_URL=http://detalle-service:8085
+    depends_on:
+      - usuario-service
+      - categoria-service
+      - producto-service
+      - boleta-service
+      - detalle-service
+    networks:
+      - pchw-net
+
+  usuario-service:
+    build:
+      context: ./usuario-service
+      dockerfile: Dockerfile
+    container_name: pchw-usuario-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - pchw-net
+
+  categoria-service:
+    build:
+      context: ./categoria-service
+      dockerfile: Dockerfile
+    container_name: pchw-categoria-service
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - pchw-net
+
+  producto-service:
+    build:
+      context: ./producto-service
+      dockerfile: Dockerfile
+    container_name: pchw-producto-service
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVICES_CATEGORIA_URL=http://categoria-service:8082
+    depends_on:
+      - categoria-service
+    networks:
+      - pchw-net
+
+  boleta-service:
+    build:
+      context: ./boleta-service
+      dockerfile: Dockerfile
+    container_name: pchw-boleta-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVICES_PRODUCTO_URL=http://producto-service:8083
+      - SERVICES_DETALLE_URL=http://detalle-service:8085
+      - SERVICES_USUARIO_URL=http://usuario-service:8081
+    depends_on:
+      - producto-service
+      - detalle-service
+    networks:
+      - pchw-net
+
+  detalle-service:
+    build:
+      context: ./detalle-service
+      dockerfile: Dockerfile
+    container_name: pchw-detalle-service
+    ports:
+      - "8085:8085"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+    networks:
+      - pchw-net
+
+networks:
+  pchw-net:
+    driver: bridge

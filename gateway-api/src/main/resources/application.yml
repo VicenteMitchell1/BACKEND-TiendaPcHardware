@@ -1,0 +1,50 @@
+server:
+  port: 8080
+  error:
+    include-stacktrace: never
+
+spring:
+  application:
+    name: gateway-api
+  profiles:
+    active: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+jwt:
+  secret: "dG9rZW5TZWNyZXRLZXlTb2Z0d2FyZVRpZW5kYTIwMjZQY0hhcmR3YXJlU2VjdXJpdHk="
+  expiration-ms: 86400000
+
+# URLs de los microservicios
+services:
+  usuario-url: http://localhost:8081
+  categoria-url: http://localhost:8082
+  producto-url: http://localhost:8083
+  boleta-url: http://localhost:8084
+  detalle-url: http://localhost:8085
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:h2:mem:gatewaydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
