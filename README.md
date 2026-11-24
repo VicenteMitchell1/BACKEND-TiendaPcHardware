@@ -6,6 +6,21 @@ Backend de la tienda de hardware **PC Hardware** (DSY1104 Desarrollo Fullstack I
 
 ---
 
+## Equipo
+
+DSY1104 Desarrollo Fullstack II · Evaluación Parcial N° 3 · Duoc UC
+
+| Integrante | RUT |
+|---|---|
+| Adán Valdebenito | 21.174.728-5 |
+| Ronald Silva | 21.081.263-6 |
+| Marcos Godoy | 20.882.869-K |
+| Vicente Mitchell | 21.082.713-7 |
+
+Repositorios: [backend](https://github.com/VicenteMitchell1/BACKEND-TiendaPcHardware) · [frontend](https://github.com/AdanValdebenitoDuocUC/pcHardware-FRONTEND)
+
+---
+
 ## 1. Arquitectura
 
 ```
