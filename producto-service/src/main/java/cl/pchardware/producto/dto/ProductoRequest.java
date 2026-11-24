@@ -1,5 +1,6 @@
 package cl.pchardware.producto.dto;
 
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,6 +22,7 @@ public class ProductoRequest {
     @Min(value = 0, message = "El precio no puede ser negativo")
     private Integer precio;
 
+    @Min(value = 0, message = "El precio anterior no puede ser negativo")
     private Integer precioAnterior;
 
     @NotNull(message = "El stock es obligatorio")
@@ -29,6 +31,9 @@ public class ProductoRequest {
 
     private String imagen;
     private Boolean esOferta;
+
+    @Min(value = 0, message = "El descuento no puede ser negativo")
+    @Max(value = 100, message = "El descuento no puede superar el 100%")
     private Integer porcentajeDescuento;
     private Boolean activo;
 

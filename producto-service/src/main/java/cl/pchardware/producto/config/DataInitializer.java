@@ -20,12 +20,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (productoRepository.count() >= 19) return;
-
-        // Si existen productos desactualizados o incompletos, re-inicializar con los 19 productos oficiales
-        if (productoRepository.count() > 0) {
-            productoRepository.deleteAll();
-        }
+        // Sólo se siembran datos en una base vacía: nunca se borran productos existentes.
+        if (productoRepository.count() > 0) return;
 
         productoRepository.saveAll(List.of(
                 Producto.builder().sku("GPU-RTX-4090FE").nombre("NVIDIA RTX 4090 Founders Edition").marca("NVIDIA").modelo("Founders Edition").descripcion("24GB GDDR6X, Ada Lovelace, DLSS 3.5, Ray Tracing Gen 3").precio(1599990).precioAnterior(1799990).stock(10).imagen("/static/img/productos/rtx-4090.jpg").esOferta(true).porcentajeDescuento(11).idCategoria(1L).nombreCategoria("Tarjetas Gráficas").activo(true).build(),
