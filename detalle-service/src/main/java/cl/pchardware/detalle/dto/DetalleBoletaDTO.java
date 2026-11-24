@@ -7,12 +7,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/** Línea de detalle de una boleta. El subtotal siempre lo calcula el servidor (precioUnitario x cantidad). */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class DetalleBoletaDTO {
     private Long id;
+
+    @NotNull(message = "El ID de la boleta es obligatorio")
     private Long idBoleta;
 
     @NotNull(message = "El ID del producto es obligatorio")
@@ -25,6 +28,9 @@ public class DetalleBoletaDTO {
     @Min(value = 1, message = "La cantidad mínima es 1")
     private Integer cantidad;
 
+    @NotNull(message = "El precio unitario es obligatorio")
+    @Min(value = 0, message = "El precio unitario no puede ser negativo")
     private Integer precioUnitario;
+
     private Integer subtotal;
 }

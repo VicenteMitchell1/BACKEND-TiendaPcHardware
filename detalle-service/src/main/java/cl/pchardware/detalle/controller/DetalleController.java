@@ -5,12 +5,14 @@ import cl.pchardware.detalle.service.DetalleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/detalles")
@@ -34,6 +36,12 @@ public class DetalleController {
         return service.findByBoletaId(idBoleta);
     }
 
+    @GetMapping("/boletas")
+    @Operation(summary = "Obtener los detalles de varias boletas en una sola consulta (?ids=1,2,3)")
+    public List<DetalleBoletaDTO> findByBoletaIds(@RequestParam List<Long> ids) {
+        return service.findByBoletaIds(ids);
+    }
+
     @PostMapping
     @Operation(summary = "Crear un detalle de boleta individual")
     public ResponseEntity<DetalleBoletaDTO> create(@Valid @RequestBody DetalleBoletaDTO dto) {
@@ -41,9 +49,16 @@ public class DetalleController {
     }
 
     @PostMapping("/batch")
-    @Operation(summary = "Crear un lote de detalles de boleta")
-    public ResponseEntity<List<DetalleBoletaDTO>> createBatch(@Valid @RequestBody List<DetalleBoletaDTO> dtos) {
+    @Operation(summary = "Crear un lote de detalles de boleta (todo o nada)")
+    public ResponseEntity<List<DetalleBoletaDTO>> createBatch(
+            @RequestBody @NotEmpty(message = "El lote de detalles no puede estar vacío") List<@Valid DetalleBoletaDTO> dtos) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createBatch(dtos));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Actualizar un detalle (el subtotal se recalcula)")
+    public DetalleBoletaDTO update(@PathVariable Long id, @Valid @RequestBody DetalleBoletaDTO dto) {
+        return service.update(id, dto);
     }
 
     @DeleteMapping("/{id}")
@@ -51,5 +66,11 @@ public class DetalleController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/boleta/{idBoleta}")
+    @Operation(summary = "Eliminar todos los detalles de una boleta (usado al eliminar la boleta)")
+    public Map<String, Integer> deleteByBoleta(@PathVariable Long idBoleta) {
+        return Map.of("eliminados", service.deleteByBoletaId(idBoleta));
     }
 }
