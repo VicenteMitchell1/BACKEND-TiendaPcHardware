@@ -1,9 +1,6 @@
 package cl.pchardware.boleta.exception;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-
-@ResponseStatus(HttpStatus.NOT_FOUND)
+/** Se traduce a HTTP 404 en {@link GlobalExceptionHandler}. */
 public class ResourceNotFoundException extends RuntimeException {
     public ResourceNotFoundException(String message) { super(message); }
 }

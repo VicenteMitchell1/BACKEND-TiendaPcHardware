@@ -2,16 +2,20 @@ package cl.pchardware.boleta.client;
 
 import cl.pchardware.boleta.exception.BadRequestException;
 import cl.pchardware.boleta.exception.ResourceNotFoundException;
+import cl.pchardware.boleta.exception.ServiceUnavailableException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -24,27 +28,40 @@ public class ProductoClient {
     @Value("${services.producto-url:http://localhost:8083}")
     private String productoUrl;
 
-    public ProductoDTO findById(Long id) {
+    /** Producto y cantidad de una línea de compra. */
+    public record ItemStock(Long idProducto, Integer cantidad) {}
+
+    /**
+     * Descuenta en producto-service el stock de TODOS los items en una sola transacción (todo o nada)
+     * y devuelve los productos con su precio vigente, en el mismo orden.
+     */
+    public List<ProductoDTO> descontarStock(List<ItemStock> items) {
         try {
-            return restTemplate.getForObject(productoUrl + "/productos/" + id, ProductoDTO.class);
+            List<ProductoDTO> productos = restTemplate.exchange(
+                    productoUrl + "/productos/stock/descontar", HttpMethod.POST,
+                    new HttpEntity<>(Map.of("items", items)),
+                    new ParameterizedTypeReference<List<ProductoDTO>>() {}).getBody();
+            if (productos == null || productos.size() != items.size()) {
+                throw new ServiceUnavailableException("Respuesta inválida de producto-service.");
+            }
+            return productos;
         } catch (HttpClientErrorException.NotFound e) {
-            throw new ResourceNotFoundException("Producto no encontrado con ID: " + id);
-        } catch (Exception e) {
-            log.error("Error consultando producto-service para id {}: {}", id, e.getMessage());
-            throw new BadRequestException("No se pudo verificar el producto en el catálogo.");
+            throw new ResourceNotFoundException(ErroresRemotos.mensaje(e, "Producto no encontrado."));
+        } catch (HttpClientErrorException e) {
+            throw new BadRequestException(ErroresRemotos.mensaje(e, "No se pudo reservar el stock."));
+        } catch (RestClientException e) {
+            log.error("Error descontando stock en producto-service: {}", e.getMessage());
+            throw new ServiceUnavailableException("El catálogo no está disponible. Intente más tarde.");
         }
     }
 
-    public void updateStock(Long idProducto, int cantidad) {
+    /** Devuelve las unidades al inventario (anulación o compensación de una compra fallida). */
+    public void reponerStock(List<ItemStock> items) {
         try {
-            restTemplate.postForEntity(
-                    productoUrl + "/productos/" + idProducto + "/stock",
-                    new HttpEntity<>(Map.of("cantidad", cantidad)),
-                    Void.class
-            );
-        } catch (Exception e) {
-            log.error("Error actualizando stock para producto {}: {}", idProducto, e.getMessage());
-            throw new BadRequestException("No se pudo actualizar el stock del producto " + idProducto);
+            restTemplate.postForEntity(productoUrl + "/productos/stock/reponer", Map.of("items", items), Void.class);
+        } catch (RestClientException e) {
+            log.error("Error reponiendo stock en producto-service: {}", e.getMessage());
+            throw new ServiceUnavailableException("No se pudo reponer el stock. Intente más tarde.");
         }
     }
 
@@ -55,5 +72,6 @@ public class ProductoClient {
         private String nombre;
         private Integer precio;
         private Integer stock;
+        private Boolean activo;
     }
 }

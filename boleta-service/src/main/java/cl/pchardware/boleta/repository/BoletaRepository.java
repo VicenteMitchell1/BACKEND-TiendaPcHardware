@@ -10,5 +10,5 @@ public interface BoletaRepository extends JpaRepository<Boleta, Long> {
     List<Boleta> findAllByOrderByFechaEmisionDesc();
     Optional<Boleta> findByNumeroBoleta(String numeroBoleta);
     List<Boleta> findByIdUsuarioOrderByFechaEmisionDesc(Long idUsuario);
-    List<Boleta> findByEmailClienteOrderByFechaEmisionDesc(String emailCliente);
+    boolean existsByNumeroBoleta(String numeroBoleta);
 }
