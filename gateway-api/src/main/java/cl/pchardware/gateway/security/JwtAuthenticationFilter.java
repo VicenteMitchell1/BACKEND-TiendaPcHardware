@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+/** Lee "Authorization: Bearer <jwt>", lo valida y registra al usuario y su rol en el SecurityContext. */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -24,24 +25,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
-        String token = resolveToken(req);
-        if (StringUtils.hasText(token) && jwtTokenProvider.validarToken(token)) {
-            String email = jwtTokenProvider.getEmailFromToken(token);
-            String rol = jwtTokenProvider.getRolFromToken(token);
-            var auth = new UsernamePasswordAuthenticationToken(
-                    email, null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + rol))
-            );
-            SecurityContextHolder.getContext().setAuthentication(auth);
-        }
-        chain.doFilter(req, res);
-    }
-
-    private String resolveToken(HttpServletRequest req) {
         String bearer = req.getHeader("Authorization");
         if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
-            return bearer.substring(7);
+            jwtTokenProvider.validar(bearer.substring(7)).ifPresent(usuario -> {
+                var auth = new UsernamePasswordAuthenticationToken(
+                        usuario, null, List.of(new SimpleGrantedAuthority("ROLE_" + usuario.rol())));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            });
         }
-        return null;
+        chain.doFilter(req, res);
     }
 }

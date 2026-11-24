@@ -1,76 +1,91 @@
 package cl.pchardware.gateway.controller;
 
-import cl.pchardware.gateway.security.JwtTokenProvider;
+import cl.pchardware.gateway.dto.doc.BoletaDocs;
+import cl.pchardware.gateway.dto.doc.ErrorDoc;
+import cl.pchardware.gateway.proxy.ProxyService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.util.StringUtils;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
 
+/** La identidad del usuario (X-User-*) se agrega en ProxyService desde el JWT; boleta-service valida la propiedad. */
 @RestController
 @RequestMapping("/api/v1/boletas")
-@Tag(name = "Boletas", description = "Emisión y consulta de boletas (Proxy hacia boleta-service)")
+@Tag(name = "Boletas", description = "Compras y órdenes → boleta-service")
+@SecurityRequirement(name = "bearerAuth")
+@ApiResponse(responseCode = "401", description = "Sin token o token expirado", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+@ApiResponse(responseCode = "403", description = "Rol sin permiso o boleta de otro cliente", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+@ApiResponse(responseCode = "404", description = "No encontrada", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+@ApiResponse(responseCode = "503", description = "Servicio no disponible", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
 @RequiredArgsConstructor
 public class BoletaProxyController {
 
-    private final RestTemplate restTemplate;
-    private final JwtTokenProvider jwtTokenProvider;
+    private final ProxyService proxy;
 
     @Value("${services.boleta-url:http://localhost:8084}")
     private String boletaUrl;
 
     @GetMapping
-    @Operation(summary = "Listar todas las boletas (ADMIN y VENDEDOR)", security = @SecurityRequirement(name = "bearerAuth"))
+    @Operation(summary = "Listar todas las boletas (ADMIN, VENDEDOR)")
+    @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BoletaDocs.Response.class))))
     public ResponseEntity<String> findAll() {
-        return restTemplate.getForEntity(boletaUrl + "/boletas", String.class);
-    }
-
-    @GetMapping("/{id}")
-    @Operation(summary = "Obtener boleta por ID", security = @SecurityRequirement(name = "bearerAuth"))
-    public ResponseEntity<String> findById(@PathVariable Long id) {
-        return restTemplate.getForEntity(boletaUrl + "/boletas/" + id, String.class);
-    }
-
-    @GetMapping("/numero/{numero}")
-    @Operation(summary = "Buscar boleta por número", security = @SecurityRequirement(name = "bearerAuth"))
-    public ResponseEntity<String> findByNumero(@PathVariable String numero) {
-        return restTemplate.getForEntity(boletaUrl + "/boletas/numero/" + numero, String.class);
+        return proxy.get(boletaUrl + "/boletas");
     }
 
     @GetMapping("/mis-boletas")
-    @Operation(summary = "Listar boletas del usuario autenticado", security = @SecurityRequirement(name = "bearerAuth"))
-    public ResponseEntity<String> findMisBoletas(HttpServletRequest request) {
-        HttpHeaders headers = extractUserHeaders(request);
-        return restTemplate.exchange(boletaUrl + "/boletas/mis-boletas", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+    @Operation(summary = "Listar las boletas del usuario autenticado")
+    @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BoletaDocs.Response.class))))
+    public ResponseEntity<String> findMisBoletas() {
+        return proxy.get(boletaUrl + "/boletas/mis-boletas");
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Obtener boleta por ID (ADMIN y VENDEDOR: cualquiera; CLIENTE: sólo las suyas)")
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = BoletaDocs.Response.class)))
+    public ResponseEntity<String> findById(@PathVariable Long id) {
+        return proxy.get(boletaUrl + "/boletas/" + id);
+    }
+
+    @GetMapping("/numero/{numero}")
+    @Operation(summary = "Buscar boleta por número (CLIENTE: sólo las suyas)")
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = BoletaDocs.Response.class)))
+    public ResponseEntity<String> findByNumero(@PathVariable String numero) {
+        return proxy.get(boletaUrl + "/boletas/numero/" + numero);
     }
 
     @PostMapping
-    @Operation(summary = "Emitir nueva boleta de compra", security = @SecurityRequirement(name = "bearerAuth"))
-    public ResponseEntity<String> create(@RequestBody String body, HttpServletRequest request) {
-        HttpHeaders headers = extractUserHeaders(request);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return restTemplate.postForEntity(boletaUrl + "/boletas", new HttpEntity<>(body, headers), String.class);
+    @Operation(summary = "Emitir boleta de compra: el total se calcula con los precios del catálogo y el stock se descuenta de forma atómica")
+    @ApiResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = BoletaDocs.Response.class)))
+    @ApiResponse(responseCode = "400", description = "Stock insuficiente, producto inactivo o datos inválidos", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+    public ResponseEntity<String> create(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = BoletaDocs.Request.class)))
+            @RequestBody String body) {
+        return proxy.forward(HttpMethod.POST, boletaUrl + "/boletas", body);
     }
 
-    private HttpHeaders extractUserHeaders(HttpServletRequest req) {
-        HttpHeaders headers = new HttpHeaders();
-        String authHeader = req.getHeader("Authorization");
-        if (StringUtils.hasText(authHeader) && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
-            if (jwtTokenProvider.validarToken(token)) {
-                String email = jwtTokenProvider.getEmailFromToken(token);
-                Long userId = jwtTokenProvider.getUserIdFromToken(token);
-                String rol = jwtTokenProvider.getRolFromToken(token);
-                if (email != null) headers.set("X-User-Email", email);
-                if (userId != null) headers.set("X-User-Id", String.valueOf(userId));
-                if (rol != null) headers.set("X-User-Role", rol);
-            }
-        }
-        return headers;
+    @PutMapping("/{id}")
+    @Operation(summary = "Actualizar estado o datos de despacho (ADMIN). ANULADA repone el stock")
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = BoletaDocs.Response.class)))
+    @ApiResponse(responseCode = "409", description = "La boleta ya está anulada", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+    public ResponseEntity<String> update(@PathVariable Long id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = BoletaDocs.UpdateRequest.class)))
+            @RequestBody String body) {
+        return proxy.forward(HttpMethod.PUT, boletaUrl + "/boletas/" + id, body);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Eliminar una boleta ANULADA junto a sus detalles (ADMIN)")
+    @ApiResponse(responseCode = "204", description = "Eliminada")
+    @ApiResponse(responseCode = "409", description = "La boleta no está anulada", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+    public ResponseEntity<String> delete(@PathVariable Long id) {
+        return proxy.forward(HttpMethod.DELETE, boletaUrl + "/boletas/" + id, null);
     }
 }

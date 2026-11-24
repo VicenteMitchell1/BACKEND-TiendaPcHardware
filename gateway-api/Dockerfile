@@ -9,4 +9,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
+# Ejecutar sin privilegios de root
+RUN addgroup -S app && adduser -S app -G app
+USER app
 ENTRYPOINT ["java", "-jar", "app.jar"]
