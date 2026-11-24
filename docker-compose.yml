@@ -1,95 +1,120 @@
+# Arquitectura completa: MySQL + 5 microservicios + API Gateway.
+# Requisito: archivo .env con los secretos (ejecute .\setup-env.ps1 o copie .env.example a .env).
+# Sólo el gateway (8080) queda accesible desde fuera; los microservicios viven en la red interna.
+
+x-microservicio: &microservicio
+  restart: unless-stopped
+  networks: [pchw-net]
+  depends_on:
+    mysql:
+      condition: service_healthy
+
+x-entorno-comun: &entorno-comun
+  SPRING_PROFILES_ACTIVE: mysql
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_USER: pchw
+  DB_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env (ver .env.example)}
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Defina INTERNAL_API_KEY en .env (ver .env.example)}
+
 services:
-  gateway-api:
-    build:
-      context: ./gateway-api
-      dockerfile: Dockerfile
-    container_name: pchw-gateway-api
-    ports:
-      - "8080:8080"
+  mysql:
+    image: mysql:8.4
+    container_name: pchw-mysql
+    restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SERVICES_USUARIO_URL=http://usuario-service:8081
-      - SERVICES_CATEGORIA_URL=http://categoria-service:8082
-      - SERVICES_PRODUCTO_URL=http://producto-service:8083
-      - SERVICES_BOLETA_URL=http://boleta-service:8084
-      - SERVICES_DETALLE_URL=http://detalle-service:8085
-    depends_on:
-      - usuario-service
-      - categoria-service
-      - producto-service
-      - boleta-service
-      - detalle-service
-    networks:
-      - pchw-net
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD en .env (ver .env.example)}
+      MYSQL_USER: pchw
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD en .env (ver .env.example)}
+      TZ: America/Santiago
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Sólo en la máquina local (para revisar la BD con MySQL Workbench / DBeaver en el puerto 3307).
+      - "127.0.0.1:3307:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [pchw-net]
 
   usuario-service:
-    build:
-      context: ./usuario-service
-      dockerfile: Dockerfile
+    <<: *microservicio
+    build: ./usuario-service
     container_name: pchw-usuario-service
-    ports:
-      - "8081:8081"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-    networks:
-      - pchw-net
+      <<: *entorno-comun
+    expose: ["8081"]
 
   categoria-service:
-    build:
-      context: ./categoria-service
-      dockerfile: Dockerfile
+    <<: *microservicio
+    build: ./categoria-service
     container_name: pchw-categoria-service
-    ports:
-      - "8082:8082"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-    networks:
-      - pchw-net
+      <<: *entorno-comun
+      SERVICES_PRODUCTO_URL: http://producto-service:8083
+    expose: ["8082"]
 
   producto-service:
-    build:
-      context: ./producto-service
-      dockerfile: Dockerfile
+    <<: *microservicio
+    build: ./producto-service
     container_name: pchw-producto-service
-    ports:
-      - "8083:8083"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SERVICES_CATEGORIA_URL=http://categoria-service:8082
-    depends_on:
-      - categoria-service
-    networks:
-      - pchw-net
+      <<: *entorno-comun
+      SERVICES_CATEGORIA_URL: http://categoria-service:8082
+    expose: ["8083"]
 
   boleta-service:
-    build:
-      context: ./boleta-service
-      dockerfile: Dockerfile
+    <<: *microservicio
+    build: ./boleta-service
     container_name: pchw-boleta-service
-    ports:
-      - "8084:8084"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - SERVICES_PRODUCTO_URL=http://producto-service:8083
-      - SERVICES_DETALLE_URL=http://detalle-service:8085
-      - SERVICES_USUARIO_URL=http://usuario-service:8081
-    depends_on:
-      - producto-service
-      - detalle-service
-    networks:
-      - pchw-net
+      <<: *entorno-comun
+      SERVICES_PRODUCTO_URL: http://producto-service:8083
+      SERVICES_DETALLE_URL: http://detalle-service:8085
+    expose: ["8084"]
 
   detalle-service:
-    build:
-      context: ./detalle-service
-      dockerfile: Dockerfile
+    <<: *microservicio
+    build: ./detalle-service
     container_name: pchw-detalle-service
-    ports:
-      - "8085:8085"
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-    networks:
-      - pchw-net
+      <<: *entorno-comun
+    expose: ["8085"]
+
+  gateway-api:
+    <<: *microservicio
+    build: ./gateway-api
+    container_name: pchw-gateway-api
+    environment:
+      <<: *entorno-comun
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET en .env (ver .env.example)}
+      SERVICES_USUARIO_URL: http://usuario-service:8081
+      SERVICES_CATEGORIA_URL: http://categoria-service:8082
+      SERVICES_PRODUCTO_URL: http://producto-service:8083
+      SERVICES_BOLETA_URL: http://boleta-service:8084
+      SERVICES_DETALLE_URL: http://detalle-service:8085
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      usuario-service:
+        condition: service_started
+      categoria-service:
+        condition: service_started
+      producto-service:
+        condition: service_started
+      boleta-service:
+        condition: service_started
+      detalle-service:
+        condition: service_started
+
+volumes:
+  mysql-data:
 
 networks:
   pchw-net:
