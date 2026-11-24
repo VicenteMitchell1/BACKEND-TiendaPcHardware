@@ -20,11 +20,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        if (categoriaRepository.count() >= 6) return;
-
-        if (categoriaRepository.count() > 0) {
-            categoriaRepository.deleteAll();
-        }
+        // Sólo se siembran datos en una base vacía: nunca se borran registros existentes.
+        if (categoriaRepository.count() > 0) return;
 
         categoriaRepository.saveAll(List.of(
                 Categoria.builder().nombre("Tarjetas Gráficas").descripcion("Potencia gráfica para gaming extremo y renderizado 3D").icono("bi-gpu-card").activo(true).build(),
