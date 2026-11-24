@@ -13,6 +13,7 @@ public class BoletaResponse {
     private LocalDateTime fechaEmision;
     private Integer subtotal;
     private Integer descuento;
+    private String codigoCupon;
     private Integer total;
     private String metodoPago;
     private String estado;

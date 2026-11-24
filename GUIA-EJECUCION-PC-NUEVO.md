@@ -18,7 +18,12 @@ En el equipo nuevo únicamente necesitas contar con el siguiente software base:
 > [!NOTE]
 > **No es necesario instalar Maven ni MySQL:**
 > - Cada microservicio cuenta con su propio **Maven Wrapper** (`mvnw.cmd` / `mvnw`).
-> - Cada microservicio utiliza por defecto una base de datos embebida **H2 en memoria** con modo de compatibilidad MySQL y datos de prueba ya sembrados al iniciar.
+> - Con Docker (Opción A) se levanta automáticamente un contenedor **MySQL 8.4** con un esquema por microservicio; los datos persisten entre reinicios.
+> - Sin Docker (Opción B) cada microservicio usa una base **H2 en memoria** (los datos se reinician al detenerlo).
+> - En ambos casos los datos de prueba se siembran automáticamente sólo cuando la base está vacía.
+
+> [!IMPORTANT]
+> Si tienes más de un JDK instalado, `JAVA_HOME` debe apuntar al **JDK 21**: con JDK 22 o superior Lombok no compila con esta versión de Spring Boot.
 
 ---
 
@@ -40,18 +45,20 @@ Tienes dos alternativas de despliegue según el entorno:
 
 ### Opción A: Con Docker (Recomendado si tienes Docker Desktop)
 
-1. Abre una terminal en `pcHardware-MICROSERVICES`:
-   ```bash
+1. Abre una consola de **PowerShell** en `pcHardware-MICROSERVICES` y genera el archivo de secretos `.env` (sólo la primera vez):
+   ```powershell
    cd C:\proyectos\pcHardware-MICROSERVICES
+   .\setup-env.ps1
+   ```
+   *(Alternativa manual: copiar `.env.example` como `.env` y completar los valores. El archivo `.env` nunca se sube a GitHub.)*
+2. Levanta la arquitectura:
+   ```powershell
    docker compose up -d --build
    ```
-2. Docker descargará las imágenes base, compilará y levantará los 6 contenedores en la red interna `pchw-net`:
-   - `gateway-api` (Puerto `8080`)
-   - `usuario-service` (Puerto `8081`)
-   - `categoria-service` (Puerto `8082`)
-   - `producto-service` (Puerto `8083`)
-   - `boleta-service` (Puerto `8084`)
-   - `detalle-service` (Puerto `8085`)
+3. Docker descargará las imágenes base, compilará y levantará 7 contenedores en la red interna `pchw-net`:
+   - `mysql` (sólo accesible desde este PC en `127.0.0.1:3307`)
+   - `gateway-api` (Puerto `8080`, **único puerto publicado**)
+   - `usuario-service`, `categoria-service`, `producto-service`, `boleta-service`, `detalle-service` (puertos 8081-8085, sólo dentro de la red de Docker)
 
 ---
 
@@ -62,12 +69,12 @@ Tienes dos alternativas de despliegue según el entorno:
    ```powershell
    $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.x"
    ```
-3. Compila los 6 microservicios (descargará dependencias y empaquetará los `.jar`):
+3. Compila los 6 microservicios (descargará dependencias, ejecutará las pruebas y empaquetará los `.jar`):
    ```powershell
    cd C:\proyectos\pcHardware-MICROSERVICES
-   .\build-all.ps1
+   .\build-all.ps1            # agrega -SkipTests para compilar más rápido
    ```
-4. Inicia todos los servicios en segundo plano:
+4. Inicia todos los servicios en segundo plano (si no existe `.env`, se genera automáticamente; los logs quedan en `.\logs`):
    ```powershell
    .\start-all.ps1
    ```
@@ -115,10 +122,17 @@ En la pantalla de Login ([http://localhost:5173/login](http://localhost:5173/log
 - **Microservicios:**
   - Si usaste Docker:
     ```bash
-    docker compose down
+    docker compose down        # conserva los datos de MySQL
+    docker compose down -v     # además borra la base de datos (vuelve a los datos semilla)
     ```
   - Si usaste PowerShell nativo:
     ```powershell
     .\stop-all.ps1
     ```
-    *(Este comando localiza y libera automáticamente los puertos 8080 al 8085).*
+    *(Detiene sólo los procesos Java que usan los puertos 8080 al 8085).*
+
+---
+
+## 🔐 Nota sobre la sesión (JWT)
+
+El login entrega un `token` (válido 1 hora) y un `refreshToken` (válido 7 días, de un solo uso). Cuando una petición responde **401**, el frontend debe llamar a `POST /api/v1/auth/refresh` con `{"refreshToken": "..."}` para obtener un par nuevo, o volver a pedir login. Al cerrar sesión debe llamar a `POST /api/v1/auth/logout`.

@@ -29,6 +29,10 @@ public class Boleta {
     @Builder.Default
     private Integer descuento = 0;
 
+    /** Código del cupón aplicado (copiado al emitir: la boleta no depende del cupón posterior). */
+    @Column(name = "codigo_cupon", length = 30)
+    private String codigoCupon;
+
     @Column(name = "total", nullable = false)
     private Integer total;
 

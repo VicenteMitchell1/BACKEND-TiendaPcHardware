@@ -2,6 +2,7 @@ server:
   port: 8085
   error:
     include-stacktrace: never
+    include-message: never
 
 spring:
   application:
@@ -14,6 +15,11 @@ spring:
       ddl-auto: update
     show-sql: false
 
+# Clave compartida que sólo conocen el gateway y los microservicios (cabecera X-Internal-Token).
+# Obligatoria: se define con la variable de entorno INTERNAL_API_KEY (ver .env.example).
+internal:
+  api-key: ${INTERNAL_API_KEY:}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -21,6 +27,7 @@ springdoc:
     path: /swagger-ui.html
 
 ---
+# Perfil de desarrollo local: base H2 en memoria (los datos se pierden al reiniciar).
 spring:
   config:
     activate:
@@ -30,22 +37,15 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
 
 ---
+# Perfil MySQL (usado por docker-compose): base persistente, credenciales por variables de entorno.
 spring:
   config:
     activate:
       on-profile: mysql
   datasource:
-    url: jdbc:mysql://localhost:3306/pchw_detalles?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/pchw_detalles?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password:
-  jpa:
-    database-platform: org.hibernate.dialect.MySQLDialect
+    username: ${DB_USER:pchw}
+    password: ${DB_PASSWORD:}

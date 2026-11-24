@@ -3,6 +3,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+### Secretos (usar .env.example como plantilla) ###
+.env
+
 ### IDEs ###
 .idea/
 *.iws
@@ -12,9 +15,11 @@ target/
 .classpath
 .project
 .settings/
+.factorypath
 bin/
 
 ### Logs y SO ###
+logs/
 *.log
 .DS_Store
 Thumbs.db

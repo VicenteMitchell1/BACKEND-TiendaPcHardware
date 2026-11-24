@@ -2,6 +2,7 @@ server:
   port: 8080
   error:
     include-stacktrace: never
+    include-message: never
 
 spring:
   application:
@@ -14,11 +15,17 @@ spring:
       ddl-auto: update
     show-sql: false
 
+# Tokens de sesión. El secreto es obligatorio y se entrega por variable de entorno (ver .env.example).
 jwt:
-  secret: "dG9rZW5TZWNyZXRLZXlTb2Z0d2FyZVRpZW5kYTIwMjZQY0hhcmR3YXJlU2VjdXJpdHk="
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET:}
+  expiration-ms: ${JWT_EXPIRATION_MS:3600000}             # access token: 1 hora
+  refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}  # refresh token: 7 días
 
-# URLs de los microservicios
+# Clave compartida con los microservicios (cabecera X-Internal-Token).
+internal:
+  api-key: ${INTERNAL_API_KEY:}
+
+# URLs de los microservicios (en Docker se sobreescriben con variables SERVICES_*).
 services:
   usuario-url: http://localhost:8081
   categoria-url: http://localhost:8082
@@ -31,8 +38,11 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 
 ---
+# Desarrollo local: refresh tokens en H2 en memoria.
 spring:
   config:
     activate:
@@ -42,9 +52,15 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+
+---
+# MySQL (docker-compose): los refresh tokens sobreviven a reinicios.
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/pchw_gateway?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USER:pchw}
+    password: ${DB_PASSWORD:}

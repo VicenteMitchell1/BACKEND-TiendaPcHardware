@@ -1,61 +1,65 @@
 package cl.pchardware.gateway.security;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Optional;
 
+/**
+ * Genera y valida los access tokens (JWT firmados con HMAC-SHA).
+ * La clave se construye una sola vez al arrancar: si falta o es débil (< 256 bits) la aplicación no inicia.
+ */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class JwtTokenProvider {
 
-    private final JwtProperties jwtProperties;
+    private final SecretKey key;
+    private final long expirationMs;
 
-    public String generarToken(String email, String rol, String nombre, Long id) {
-        Date now = new Date();
-        Date exp = new Date(now.getTime() + jwtProperties.getExpirationMs());
+    public JwtTokenProvider(JwtProperties props) {
+        if (!StringUtils.hasText(props.getSecret())) {
+            throw new IllegalStateException("Falta el secreto JWT: defina la variable de entorno JWT_SECRET (Base64, mínimo 32 bytes).");
+        }
+        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(props.getSecret()));
+        this.expirationMs = props.getExpirationMs();
+    }
+
+    public String generarToken(UsuarioAutenticado usuario) {
+        Date ahora = new Date();
         return Jwts.builder()
-                .subject(email)
-                .claim("rol", rol)
-                .claim("nombre", nombre)
-                .claim("userId", id)
-                .issuedAt(now)
-                .expiration(exp)
-                .signWith(getKey())
+                .subject(usuario.email())
+                .claim("rol", usuario.rol())
+                .claim("nombre", usuario.nombre())
+                .claim("userId", usuario.id())
+                .issuedAt(ahora)
+                .expiration(new Date(ahora.getTime() + expirationMs))
+                .signWith(key)
                 .compact();
     }
 
-    public boolean validarToken(String token) {
+    /** Valida firma y expiración. Devuelve vacío si el token es inválido, está alterado o expiró. */
+    public Optional<UsuarioAutenticado> validar(String token) {
         try {
-            Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token);
-            return true;
+            Claims c = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            Object id = c.get("userId");
+            String rol = c.get("rol", String.class);
+            if (!(id instanceof Number n) || !StringUtils.hasText(rol)) return Optional.empty();
+            return Optional.of(new UsuarioAutenticado(n.longValue(), c.getSubject(), rol, c.get("nombre", String.class)));
         } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Token invalido: {}", e.getMessage());
-            return false;
+            log.debug("Token rechazado: {}", e.getMessage());
+            return Optional.empty();
         }
     }
 
-    public String getEmailFromToken(String token) { return getClaims(token).getSubject(); }
-    public String getRolFromToken(String token) { return getClaims(token).get("rol", String.class); }
-    public String getNombreFromToken(String token) { return getClaims(token).get("nombre", String.class); }
-
-    public Long getUserIdFromToken(String token) {
-        Object val = getClaims(token).get("userId");
-        if (val instanceof Number num) return num.longValue();
-        return null;
-    }
-
-    private Claims getClaims(String token) {
-        return Jwts.parser().verifyWith(getKey()).build().parseSignedClaims(token).getPayload();
-    }
-
-    private SecretKey getKey() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
+    public long getExpirationSeconds() {
+        return expirationMs / 1000;
     }
 }
