@@ -1,0 +1,5 @@
+E8 | OK  | Con detalle-service caído la compra NO se confirma (503) | 503 | 503 No se pudo guardar los detalles de la compra: servicio de de
+E8 | OK  | ...y el stock se repone por compensación (5) | 5 | 5
+E12 | OK  | Servicio caído -> 503 sin detalles internos | 503 genérico | 503 Servicio no disponible temporalmente. Intente más tarde.
+
+TOTAL 3 | OK 3 | FALLA 0

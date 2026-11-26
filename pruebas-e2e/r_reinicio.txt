@@ -1,0 +1,5 @@
+E6 | OK  | Producto creado sobrevive al reinicio (MySQL) | 200 | 200
+E6 | OK  | Usuario registrado sobrevive al reinicio | 200 | 200
+E6 | OK  | Boletas conservan sus detalles tras el reinicio | 0 sin detalle | 15 boletas, 0 sin detalle
+
+TOTAL 3 | OK 3 | FALLA 0

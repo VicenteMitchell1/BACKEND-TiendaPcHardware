@@ -132,6 +132,21 @@ cd producto-service; .\mvnw.cmd test     # o .\build-all.ps1 para todos
 - 137 pruebas (unitarias con Mockito + integración con MockMvc/H2): reglas de negocio, validaciones, cupones, matriz de permisos por rol, ciclo JWT/refresh, atomicidad y concurrencia del stock (20 compras simultáneas sobre stock 10 → exactamente 10 éxitos).
 - Reporte de cobertura JaCoCo por servicio: `<servicio>/target/site/jacoco/index.html`.
 
+### Pruebas end-to-end (`pruebas-e2e/`)
+`pruebas_e2e.py` prueba el sistema completo por HTTP contra Docker Compose + MySQL (sólo Python 3, sin dependencias): requisitos de la rúbrica, matriz de roles, refresh token, reglas de la compra, cupones, caída de un servicio y persistencia tras reiniciar. Se ejecuta por fases desde la carpeta `pruebas-e2e` (la fase `principal` guarda en `estado.json` los datos que usan las siguientes, con tokens válidos por 1 hora):
+```powershell
+cd pruebas-e2e                                # docker compose encuentra el docker-compose.yml de la carpeta padre
+docker compose up -d --build                  # sistema levantado
+python -I pruebas_e2e.py principal            # 106 casos
+docker compose stop detalle-service
+python -I pruebas_e2e.py caida                # 3 casos: compra -> 503 y stock repuesto
+docker compose start detalle-service
+python -I pruebas_e2e.py tras_caida           # 1 caso: no quedan boletas sin detalle
+docker compose down; docker compose up -d     # reinicio conservando el volumen de MySQL
+python -I pruebas_e2e.py reinicio             # 3 casos: los datos sobreviven
+```
+Los archivos `r_*.txt` contienen la salida de la última ejecución registrada (113/113 OK).
+
 ---
 
 ## 6. Estructura de cada microservicio
