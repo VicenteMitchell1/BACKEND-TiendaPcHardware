@@ -33,7 +33,7 @@ R10 | OK  | Rol ANÓNIMO: POST /productos | 401 | 401
 R10 | OK  | Rol ANÓNIMO: GET /usuarios | 401 | 401
 R11 | OK  | Compra CLIENTE crea boleta | 201 | 201
 R11 | OK  | Compra descuenta stock (10 -> 8) | 8 | 8
-R11 | OK  | La boleta aparece en mis-boletas | incluida | BOL-36414331
+R11 | OK  | La boleta aparece en mis-boletas | incluida | BOL-81662443
 R12 | OK  | CORS permite al frontend (localhost:5173) | 200 | 200
 E1 | OK  | Duración del access token <= 1h | <=1h | 1h
 E1 | OK  | Login entrega refreshToken y expiresIn | refreshToken + 3600 | 3600
@@ -59,7 +59,7 @@ E5 | OK  | Puerto de boleta-service NO accesible desde fuera | sin conexión | 0
 E5 | OK  | Puerto de detalle-service NO accesible desde fuera | sin conexión | 0
 E5 | OK  | Respuestas de usuarios sin passwordHash | sin hash | ok
 E13 | OK  | JWT forjado con el secreto antiguo del repo es rechazado | 401 | 401
-E8 | OK  | Compra rechazada NO descuenta stock (atomicidad) | 400 y stock=2 | 400 stock=2 'Stock insuficiente para: Prueba A-539431. Disponib'
+E8 | OK  | Compra rechazada NO descuenta stock (atomicidad) | 400 y stock=2 | 400 stock=2 'Stock insuficiente para: Prueba A-668855. Disponib'
 E9 | OK  | 20 compras simultáneas de 1 con stock 10: exactamente 10 éxitos | 10 x 201, stock 0 | 10 x 201, 10 x 400, stock=0
 E9 | OK  | 5 compras simultáneas del stock total: sólo 1 éxito | 1 x 201 | 1 x 201, stock=0
 E21 | OK  | Detalle semilla coincide con el producto 3 | RAM-CORSAIR-32G | RAM-CORSAIR-32G
@@ -88,21 +88,21 @@ E24 | OK  | Método no soportado -> 405 | 405 | 405
 E14 | OK  | Usuario desactivado NO puede iniciar sesión -> 403 | 403 | 403 La cuenta está desactivada. Contacte al administrador.
 E16 | OK  | Rechaza producto con categoría inexistente | 400 | 400 La categoría con ID 9999 no existe.
 E16 | OK  | No borra categoría que tiene productos -> 409 | 409 | 409 No se puede eliminar la categoría: tiene 1 producto(s) asoci
-E16 | OK  | No permite comprar producto inactivo -> 400 | 400 | 400 El producto 'Prueba IN-539431' no está disponible para la venta.
-E16 | OK  | Renombrar categoría actualiza nombreCategoria en productos | GPUs ... | GPUs 539431
+E16 | OK  | No permite comprar producto inactivo -> 400 | 400 | 400 El producto 'Prueba IN-668855' no está disponible para la venta.
+E16 | OK  | Renombrar categoría actualiza nombreCategoria en productos | GPUs ... | GPUs 668855
 E17 | OK  | Crear usuario sin contraseña -> 400 | 400 | 400 La contraseña es obligatoria al crear un usuario.
 E17 | OK  | Rol inexistente -> 400 | 400 | 400 Rol inválido: SUPERADMIN. Valores permitidos: [ADM
 E22 | OK  | Consola H2 del gateway NO expuesta | 401/404 | 401
-E19 | OK  | Listado de boletas en 1 llamada a detalle-service | todas con detalle | 14 boletas, 29 ms
+E19 | OK  | Listado de boletas en 1 llamada a detalle-service | todas con detalle | 28 boletas, 35 ms
 F2 | OK  | Validar cupón semilla (minúsculas) como CLIENTE | 200 15% | 200 {'id': 1, 'codigo': 'HARDWARE2026', 'porcentaje': 15, 'descripcion': '15% de descuento especial hardware 2
 F2 | OK  | Validar cupón sin sesión -> 401 | 401 | 401
 F2 | OK  | Compra con cupón: descuento 15% calculado en servidor (ignora montos del cliente) | 201 199998-30000=169998 | 201 199998/30000/169998
 F2 | OK  | Cupón inexistente -> 400 y stock intacto | 400 stock 8 | 400 Código de descuento no válido o vencido. stock 8
-F2 | OK  | ADMIN crea cupón (se guarda en mayúsculas) | 201 | 201 {'id': 4, 'codigo': 'E2E539431', 'porcentaje': 20, 'descripcion': None, 'activo': True}
+F2 | OK  | ADMIN crea cupón (se guarda en mayúsculas) | 201 | 201 {'id': 11, 'codigo': 'E2E668855', 'porcentaje': 20, 'descripcion': None, 'activo': True}
 F2 | OK  | Cupón desactivado -> 400 al pagar | 400 | 400 Código de descuento no válido o vencido.
 F2 | OK  | CLIENTE no lista ni crea cupones -> 403 | 403/403 | 403/403
 F2 | OK  | Cupón duplicado -> 409 | 409 | 409
-F2 | OK  | Cupón inválido -> 400 con detalles | 400 | 400 {'timestamp': '2026-11-24T16:57:38.110298928', 'status': 400, 'error': 'Datos de entrada inválidos.', 'det
+F2 | OK  | Cupón inválido -> 400 con detalles | 400 | 400 {'timestamp': '2026-11-26T01:54:43.050071298', 'status': 400, 'error': 'Datos de entrada inválidos.', 'det
 F2 | OK  | ADMIN elimina cupón -> 204 | 204 | 204
 
 TOTAL 106 | OK 106 | FALLA 0

@@ -45,7 +45,7 @@ Repositorios: [backend](https://github.com/VicenteMitchell1/BACKEND-TiendaPcHard
 | Servicio | Puerto | Entidad | Esquema MySQL | Responsabilidad |
 |---|---|---|---|---|
 | `gateway-api` | 8080 | `REFRESH_TOKEN` | `pchw_gateway` | Punto único de entrada, emisión/renovación de JWT, RBAC, proxy |
-| `usuario-service` | 8081 | `USUARIO` | `pchw_usuarios` | Usuarios y roles, hash BCrypt, verificación de credenciales |
+| `usuario-service` | 8081 | `USUARIO`, `HISTORIAL_USUARIO` | `pchw_usuarios` | Usuarios y roles, hash BCrypt, verificación de credenciales, perfil propio e historial de cambios en las cuentas |
 | `categoria-service` | 8082 | `CATEGORIA` | `pchw_categorias` | Categorías; no permite borrar categorías con productos |
 | `producto-service` | 8083 | `PRODUCTO` | `pchw_productos` | Catálogo, precios, ofertas, **descuento atómico de stock** |
 | `boleta-service` | 8084 | `BOLETA`, `CUPON` | `pchw_boletas` | Compras: orquesta stock y detalles, calcula montos y cupones, anulaciones |
@@ -63,7 +63,8 @@ Repositorios: [backend](https://github.com/VicenteMitchell1/BACKEND-TiendaPcHard
 | **Renovación** | `POST /api/v1/auth/refresh` entrega un par nuevo. Cada refresh token es de **un solo uso** (rotación); si se reutiliza uno ya usado se revocan todas las sesiones del usuario. Sólo se guarda su hash SHA-256. |
 | **Cierre de sesión** | `POST /api/v1/auth/logout` revoca el refresh token. |
 | **Contraseñas** | BCrypt. La verificación ocurre dentro de `usuario-service`: el hash nunca viaja por la red. |
-| **Roles (RBAC)** | `ADMIN` acceso total · `VENDEDOR` ve productos, boletas y detalles · `CLIENTE` tienda, compra y **sólo sus propias boletas**. |
+| **Roles (RBAC)** | `ADMIN` acceso total · `VENDEDOR` ve productos, boletas y detalles · `CLIENTE` tienda, compra y **sólo sus propias boletas**. Todos editan su propia cuenta en `/usuarios/me`. |
+| **Cuentas** | El ADMIN edita datos, rol y estado de cualquier cuenta, **salvo la contraseña** (`400` si se envía); sobre la suya no puede quitarse el rol ni desactivarse. Cada usuario cambia su nombre, apellido y email, y su contraseña sólo **ingresando la actual**. **El RUT no lo cambia nadie** (`400`). Cada alta, edición, cambio de contraseña y eliminación queda en `HISTORIAL_USUARIO` (quién, qué campo, valor anterior y nuevo, cuándo), sin guardar contraseñas. |
 | **Códigos** | `401` sin token / token inválido o expirado (el frontend debe renovar o pedir login) · `403` rol sin permiso o cuenta desactivada. |
 | **Servicios internos** | Sólo aceptan peticiones con la cabecera `X-Internal-Token` (clave compartida) y no publican puertos en Docker. La identidad (`X-User-*`) la construye el gateway desde el JWT; el cliente no puede falsificarla. |
 | **Secretos** | `JWT_SECRET`, `INTERNAL_API_KEY` y contraseñas de MySQL se leen de variables de entorno (`.env`, excluido de git). Sin ellos la aplicación no arranca. |
@@ -71,8 +72,9 @@ Repositorios: [backend](https://github.com/VicenteMitchell1/BACKEND-TiendaPcHard
 ### Reglas de negocio de la compra (`POST /api/v1/boletas`)
 1. `producto-service` descuenta el stock de **todos** los items en una sola transacción con un `UPDATE ... WHERE stock >= cantidad` atómico: o se descuenta todo o nada, y dos compras simultáneas nunca venden la misma unidad.
 2. Los montos se calculan en el servidor con los precios del catálogo (se ignoran `total`, `subtotal`, `descuento` e `idUsuario` enviados por el cliente). Si se envía `codigoCupon`, boleta-service lo valida **antes** de tocar el stock (activo, sin distinguir mayúsculas) y aplica su porcentaje redondeado al peso; un código inválido responde `400`. La boleta guarda el código y el monto descontado. Cupones semilla: `HARDWARE2026` (15 %), `GAMER10` (10 %), `BIENVENIDO` (5 %).
-3. Se guarda la boleta y luego sus detalles. Si `detalle-service` falla, se **repone el stock** (compensación) y la boleta se revierte → respuesta `503`.
-4. Anular una boleta (`PUT` con `estado: ANULADA`) repone el stock; sólo las boletas anuladas se pueden eliminar.
+3. La comuna de despacho debe pertenecer a la región elegida (la misma lista que usa el checkout, en `RegionesDespacho`); si no, `400` sin tocar el stock. Sin región ni comuna se usa Santiago (Región Metropolitana).
+4. Se guarda la boleta y luego sus detalles. Si `detalle-service` falla, se **repone el stock** (compensación) y la boleta se revierte → respuesta `503`.
+5. Anular una boleta (`PUT` con `estado: ANULADA`) repone el stock; sólo las boletas anuladas se pueden eliminar.
 
 ---
 
@@ -88,6 +90,8 @@ docker compose down             # detener (los datos quedan en el volumen mysql-
 docker compose down -v          # detener y BORRAR la base de datos
 ```
 MySQL queda disponible sólo en la máquina local en `127.0.0.1:3307` (usuario `pchw`, clave `DB_PASSWORD` del `.env`) para revisarla con MySQL Workbench o DBeaver.
+
+Todos los contenedores usan la hora de Chile (`TZ: America/Santiago`). Las fechas se guardan en MySQL en UTC (la conexión JDBC usa `serverTimezone=UTC`) y la API las entrega en hora de Chile; por eso, al consultar la base directamente, las fechas aparecen 3 horas adelantadas.
 
 ### Opción B — Sin Docker (Java 21 + PowerShell, base H2 en memoria)
 ```powershell
@@ -114,7 +118,8 @@ MySQL queda disponible sólo en la máquina local en `127.0.0.1:3307` (usuario `
 | Auth | `POST /auth/login`, `/auth/register`, `/auth/refresh`, `/auth/logout` | Público |
 | Productos | `GET /productos`, `/productos/activos`, `/productos/{id}` · `POST`, `PUT /{id}`, `DELETE /{id}` | Lectura pública · escritura ADMIN |
 | Categorías | `GET /categorias`, `/categorias/{id}` · `POST`, `PUT /{id}`, `DELETE /{id}` | Lectura pública · escritura ADMIN |
-| Usuarios | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` | ADMIN |
+| Usuarios | `GET`, `GET /{id}`, `POST`, `PUT /{id}` (sin contraseña ni RUT), `DELETE /{id}`, `GET /historial?idUsuario=` | ADMIN |
+| Perfil propio | `GET /usuarios/me`, `PUT /usuarios/me` (nombre, apellido, email), `PUT /usuarios/me/password` (exige la contraseña actual) | Autenticados |
 | Boletas | `GET /boletas` (ADMIN, VENDEDOR) · `GET /boletas/mis-boletas`, `/{id}`, `/numero/{n}`, `POST /boletas` (autenticados; CLIENTE sólo las suyas) · `PUT /{id}`, `DELETE /{id}` (ADMIN) | Según rol |
 | Detalles | `GET /detalles`, `/{id}`, `/boleta/{id}` (ADMIN, VENDEDOR) · `POST`, `PUT /{id}`, `DELETE /{id}` (ADMIN) | Según rol |
 | Cupones | `GET /cupones/validar/{codigo}` (autenticados) · `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` (ADMIN) | Según rol |
@@ -129,7 +134,7 @@ Errores con formato común: `{"timestamp", "status", "error", "detalles"?}` (400
 ```powershell
 cd producto-service; .\mvnw.cmd test     # o .\build-all.ps1 para todos
 ```
-- 137 pruebas (unitarias con Mockito + integración con MockMvc/H2): reglas de negocio, validaciones, cupones, matriz de permisos por rol, ciclo JWT/refresh, atomicidad y concurrencia del stock (20 compras simultáneas sobre stock 10 → exactamente 10 éxitos).
+- 155 pruebas (unitarias con Mockito + integración con MockMvc/H2): reglas de negocio, validaciones, cupones, región y comuna de despacho, edición de cuentas (contraseña y RUT protegidos) e historial de cambios, matriz de permisos por rol, ciclo JWT/refresh, atomicidad y concurrencia del stock (20 compras simultáneas sobre stock 10 → exactamente 10 éxitos).
 - Reporte de cobertura JaCoCo por servicio: `<servicio>/target/site/jacoco/index.html`.
 
 ### Pruebas end-to-end (`pruebas-e2e/`)

@@ -109,10 +109,12 @@ En la pantalla de Login ([http://localhost:5173/login](http://localhost:5173/log
 
 | Rol | Correo Electrónico | Contraseña | Capacidades y Permisos |
 |---|---|---|---|
-| **Administrador** | `admin@duoc.cl` | `admin` | Acceso completo: Dashboard, CRUD de Productos, Categorías, Control de Inventario y Administración de Usuarios. |
+| **Administrador** | `admin@duoc.cl` | `admin` | Acceso completo: Dashboard, CRUD de Productos, Categorías, Control de Inventario, Reportes (descarga en CSV) y Administración de Usuarios (edición de cuentas e historial de cambios). |
 | **Vendedor** | `vendedor@duoc.cl` | `vendedor` | Acceso restringido: Consulta de catálogo en modo Solo Lectura y revisión de boletas emitidas. |
 | **Cliente** | `alumno@duoc.cl` | `1234` | Catálogo público, carrito de compras, emisión de boletas y módulo "Mis Compras". |
 | **Cliente 2** | `pancho@gmail.com` | `gamer` | Cuenta cliente con historial previo de órdenes de compra. |
+
+Todas las cuentas tienen **Mi Perfil** (menú del usuario): cambiar nombre, apellido y correo, y cambiar la contraseña ingresando la actual. El RUT no se puede modificar, y el administrador puede editar cualquier cuenta salvo su contraseña.
 
 ---
 
