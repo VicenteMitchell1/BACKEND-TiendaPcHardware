@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/usuarios")
-@Tag(name = "Usuarios", description = "Gestión de usuarios y roles (exclusivo ADMIN) → usuario-service")
+@Tag(name = "Usuarios", description = "Gestión de usuarios, roles e historial (ADMIN) y perfil propio (/me, cualquier usuario con sesión) → usuario-service")
 @SecurityRequirement(name = "bearerAuth")
 @ApiResponse(responseCode = "400", description = "Datos inválidos", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
 @ApiResponse(responseCode = "401", description = "Sin token o token expirado", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
@@ -39,6 +39,40 @@ public class UsuarioProxyController {
         return proxy.get(usuarioUrl + "/usuarios");
     }
 
+    @GetMapping("/historial")
+    @Operation(summary = "Historial de cambios en las cuentas: quién cambió qué y cuándo (ADMIN)")
+    @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = UsuarioDocs.Historial.class))))
+    public ResponseEntity<String> historial(@RequestParam(required = false) Long idUsuario) {
+        return proxy.get(usuarioUrl + "/usuarios/historial" + (idUsuario == null ? "" : "?idUsuario=" + idUsuario));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Datos de la propia cuenta (cualquier usuario con sesión)")
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = UsuarioDocs.Response.class)))
+    public ResponseEntity<String> perfil() {
+        return proxy.get(usuarioUrl + "/usuarios/me");
+    }
+
+    @PutMapping("/me")
+    @Operation(summary = "Actualizar nombre, apellido y email de la propia cuenta (cualquier usuario con sesión)",
+            description = "Si cambia el email, el cliente debe renovar la sesión (/auth/refresh) para recibir un JWT con el email nuevo.")
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = UsuarioDocs.Response.class)))
+    @ApiResponse(responseCode = "409", description = "Email ya registrado", content = @Content(schema = @Schema(implementation = ErrorDoc.class)))
+    public ResponseEntity<String> actualizarPerfil(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = UsuarioDocs.Perfil.class)))
+            @RequestBody String body) {
+        return proxy.forward(HttpMethod.PUT, usuarioUrl + "/usuarios/me", body);
+    }
+
+    @PutMapping("/me/password")
+    @Operation(summary = "Cambiar la propia contraseña; exige la contraseña actual (cualquier usuario con sesión)")
+    @ApiResponse(responseCode = "204", description = "Contraseña cambiada")
+    public ResponseEntity<String> cambiarPassword(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = UsuarioDocs.CambioPassword.class)))
+            @RequestBody String body) {
+        return proxy.forward(HttpMethod.PUT, usuarioUrl + "/usuarios/me/password", body);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Obtener usuario por ID (ADMIN)")
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = UsuarioDocs.Response.class)))
@@ -57,7 +91,8 @@ public class UsuarioProxyController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar usuario, rol o estado activo (ADMIN)")
+    @Operation(summary = "Actualizar datos, rol o estado activo de un usuario (ADMIN)",
+            description = "No cambia la contraseña (400 si se envía). Sobre su propia cuenta el ADMIN no puede quitarse el rol ni desactivarse.")
     @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = UsuarioDocs.Response.class)))
     public ResponseEntity<String> update(@PathVariable Long id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(content = @Content(schema = @Schema(implementation = UsuarioDocs.Request.class)))

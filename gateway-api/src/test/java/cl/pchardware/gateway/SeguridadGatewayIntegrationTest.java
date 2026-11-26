@@ -85,6 +85,15 @@ class SeguridadGatewayIntegrationTest {
             "GET,    /api/v1/usuarios,            CLIENTE,  403",
             "GET,    /api/v1/usuarios,            VENDEDOR, 403",
             "GET,    /api/v1/usuarios,            ADMIN,    200",
+            "GET,    /api/v1/usuarios/historial,  VENDEDOR, 403",
+            "GET,    /api/v1/usuarios/historial,  ADMIN,    200",
+            "PUT,    /api/v1/usuarios/5,          CLIENTE,  403",
+            // Perfil propio: cualquier usuario con sesión
+            "GET,    /api/v1/usuarios/me,         ANONIMO,  401",
+            "GET,    /api/v1/usuarios/me,         CLIENTE,  200",
+            "PUT,    /api/v1/usuarios/me,         VENDEDOR, 200",
+            "PUT,    /api/v1/usuarios/me/password, CLIENTE, 200",
+            "DELETE, /api/v1/usuarios/me,         CLIENTE,  403",
             // Boletas: listado para el personal; el cliente sólo las suyas
             "GET,    /api/v1/boletas,             CLIENTE,  403",
             "GET,    /api/v1/boletas,             VENDEDOR, 200",
