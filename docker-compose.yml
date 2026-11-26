@@ -10,6 +10,9 @@ x-microservicio: &microservicio
       condition: service_healthy
 
 x-entorno-comun: &entorno-comun
+  # Hora de Chile para las fechas que generan los servicios (boletas, historial de usuarios).
+  # Sin esto la JVM del contenedor usa UTC y las fechas se ven 3 horas adelantadas.
+  TZ: America/Santiago
   SPRING_PROFILES_ACTIVE: mysql
   DB_HOST: mysql
   DB_PORT: "3306"
