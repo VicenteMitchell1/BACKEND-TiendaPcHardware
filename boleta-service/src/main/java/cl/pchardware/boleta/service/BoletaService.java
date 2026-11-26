@@ -84,7 +84,10 @@ public class BoletaService {
     @Transactional
     public BoletaResponse create(BoletaRequest request, UsuarioActual usuario) {
         exigirUsuario(usuario);
-        // El cupón se valida ANTES de tocar el stock: un código inválido no debe descontar nada.
+        // El destino y el cupón se validan ANTES de tocar el stock: un dato inválido no debe descontar nada.
+        RegionesDespacho.Destino destino = RegionesDespacho.validar(
+                valorO(request.getRegion(), RegionesDespacho.REGION_POR_DEFECTO),
+                valorO(request.getComuna(), RegionesDespacho.COMUNA_POR_DEFECTO));
         Cupon cupon = StringUtils.hasText(request.getCodigoCupon())
                 ? cuponService.obtenerParaCompra(request.getCodigoCupon()) : null;
         List<ItemStock> items = request.getItems().stream()
@@ -120,8 +123,8 @@ public class BoletaService {
                     .emailCliente(usuario.email())
                     .rutCliente(valorO(request.getRutCliente(), ""))
                     .direccionEnvio(valorO(request.getDireccionEnvio(), "Despacho a Domicilio"))
-                    .comuna(valorO(request.getComuna(), "Santiago"))
-                    .region(valorO(request.getRegion(), "Región Metropolitana de Santiago"))
+                    .comuna(destino.comuna())
+                    .region(destino.region())
                     .idUsuario(usuario.id())
                     .build());
 
@@ -144,6 +147,11 @@ public class BoletaService {
     public BoletaResponse update(Long id, BoletaUpdateRequest req, UsuarioActual usuario) {
         exigirAdmin(usuario);
         Boleta b = buscar(id);
+        // Si se edita el destino, el par resultante (lo nuevo + lo que no cambia) debe ser coherente.
+        RegionesDespacho.Destino destino = req.getRegion() == null && req.getComuna() == null ? null
+                : RegionesDespacho.validar(
+                        req.getRegion() != null ? req.getRegion() : b.getRegion(),
+                        req.getComuna() != null ? req.getComuna() : b.getComuna());
         List<DetalleBoletaDTO> detalles = detalleClient.findByBoletaId(id);
 
         if (StringUtils.hasText(req.getEstado()) && !req.getEstado().equals(b.getEstado())) {
@@ -160,8 +168,10 @@ public class BoletaService {
         if (req.getNombreCliente() != null) b.setNombreCliente(req.getNombreCliente());
         if (req.getRutCliente() != null) b.setRutCliente(req.getRutCliente());
         if (req.getDireccionEnvio() != null) b.setDireccionEnvio(req.getDireccionEnvio());
-        if (req.getComuna() != null) b.setComuna(req.getComuna());
-        if (req.getRegion() != null) b.setRegion(req.getRegion());
+        if (destino != null) {
+            b.setRegion(destino.region());
+            b.setComuna(destino.comuna());
+        }
         return toResponse(boletaRepository.save(b), detalles);
     }
 

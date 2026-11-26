@@ -247,4 +247,55 @@ class BoletaServiceTest {
         verify(detalleClient).deleteByBoletaId(2L);
         verify(repo).delete(any(Boleta.class));
     }
+
+    @Test
+    @DisplayName("Comuna que no pertenece a la región -> 400 y el stock no se toca")
+    void compraComunaDeOtraRegion() {
+        BoletaRequest req = compra(1, 1);
+        req.setRegion("Región de Valparaíso");
+        req.setComuna("Santiago");
+
+        assertThatThrownBy(() -> service.create(req, CLIENTE))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("no pertenece");
+        verifyNoInteractions(productoClient, detalleClient);
+    }
+
+    @Test
+    @DisplayName("Destino válido se guarda con el nombre oficial; sin destino se usa Santiago (RM)")
+    void compraDestinoValido() {
+        when(productoClient.descontarStock(anyList())).thenReturn(List.of(producto(1, 1000)));
+        BoletaRequest req = compra(1, 1);
+        req.setRegion(" región metropolitana de santiago ");
+        req.setComuna("MAIPÚ");
+
+        BoletaResponse r = service.create(req, CLIENTE);
+        assertThat(r.getRegion()).isEqualTo("Región Metropolitana de Santiago");
+        assertThat(r.getComuna()).isEqualTo("Maipú");
+
+        BoletaResponse sinDestino = service.create(compra(1, 1), CLIENTE);
+        assertThat(sinDestino.getRegion()).isEqualTo("Región Metropolitana de Santiago");
+        assertThat(sinDestino.getComuna()).isEqualTo("Santiago");
+    }
+
+    @Test
+    @DisplayName("Al editar una boleta, la comuna nueva debe pertenecer a la región (nueva o actual)")
+    void editarDestino() {
+        Boleta b = boleta(1, 5, "PAGADA");
+        b.setRegion("Región Metropolitana de Santiago");
+        b.setComuna("Providencia");
+        when(repo.findById(1L)).thenReturn(Optional.of(b));
+
+        BoletaUpdateRequest incoherente = new BoletaUpdateRequest();
+        incoherente.setComuna("Viña del Mar");
+        assertThatThrownBy(() -> service.update(1L, incoherente, ADMIN)).isInstanceOf(BadRequestException.class);
+        assertThat(b.getComuna()).isEqualTo("Providencia");
+
+        BoletaUpdateRequest cambio = new BoletaUpdateRequest();
+        cambio.setRegion("Región de Valparaíso");
+        cambio.setComuna("Viña del Mar");
+        BoletaResponse r = service.update(1L, cambio, ADMIN);
+        assertThat(r.getRegion()).isEqualTo("Región de Valparaíso");
+        assertThat(r.getComuna()).isEqualTo("Viña del Mar");
+    }
 }
