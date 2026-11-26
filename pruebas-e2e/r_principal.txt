@@ -1,0 +1,108 @@
+R01 | OK  | Swagger del gateway disponible | 200 | 200
+R02 | OK  | Login ADMIN | 200 + token | 200
+R03 | OK  | Login VENDEDOR | 200 + token | 200
+R04 | OK  | Login CLIENTE | 200 + token | 200
+R05 | OK  | JWT contiene rol, userId y expiración | rol,userId,exp | ['exp', 'iat', 'nombre', 'rol', 'sub', 'userId']
+R06 | OK  | GET público /productos | 200 | 200
+R06 | OK  | GET público /productos/activos | 200 | 200
+R06 | OK  | GET público /productos/1 | 200 | 200
+R06 | OK  | GET público /categorias | 200 | 200
+R06 | OK  | GET público /categorias/1 | 200 | 200
+R07 | OK  | CRUD categoría: crear | 201 | 201
+R07 | OK  | CRUD categoría: actualizar | 200 | 200
+R07 | OK  | CRUD categoría: eliminar | 204 | 204
+R08 | OK  | CRUD producto: crear | 201 | 201
+R08 | OK  | CRUD producto: actualizar | 200 | 200
+R08 | OK  | CRUD producto: eliminar | 204 | 204
+R08 | OK  | Producto inexistente devuelve 404 | 404 | 404
+R09 | OK  | CRUD usuario: crear | 201 | 201
+R09 | OK  | CRUD usuario: actualizar | 200 | 200
+R09 | OK  | CRUD usuario: eliminar | 204 | 204
+R10 | OK  | Rol VENDEDOR: GET /boletas | 200 | 200
+R10 | OK  | Rol VENDEDOR: GET /boletas/1 | 200 | 200
+R10 | OK  | Rol VENDEDOR: GET /detalles | 200 | 200
+R10 | OK  | Rol VENDEDOR: GET /usuarios | 403 | 403
+R10 | OK  | Rol VENDEDOR: POST /productos | 403 | 403
+R10 | OK  | Rol VENDEDOR: DELETE /categorias/1 | 403 | 403
+R10 | OK  | Rol CLIENTE: GET /boletas | 403 | 403
+R10 | OK  | Rol CLIENTE: GET /usuarios | 403 | 403
+R10 | OK  | Rol CLIENTE: POST /productos | 403 | 403
+R10 | OK  | Rol CLIENTE: GET /boletas/mis-boletas | 200 | 200
+R10 | OK  | Rol ANÓNIMO: GET /boletas | 401 | 401
+R10 | OK  | Rol ANÓNIMO: POST /productos | 401 | 401
+R10 | OK  | Rol ANÓNIMO: GET /usuarios | 401 | 401
+R11 | OK  | Compra CLIENTE crea boleta | 201 | 201
+R11 | OK  | Compra descuenta stock (10 -> 8) | 8 | 8
+R11 | OK  | La boleta aparece en mis-boletas | incluida | BOL-36414331
+R12 | OK  | CORS permite al frontend (localhost:5173) | 200 | 200
+E1 | OK  | Duración del access token <= 1h | <=1h | 1h
+E1 | OK  | Login entrega refreshToken y expiresIn | refreshToken + 3600 | 3600
+E1 | OK  | POST /auth/refresh entrega un JWT nuevo | 200 | 200
+E1 | OK  | El JWT renovado funciona | 200 | 200
+E1 | OK  | Reusar un refresh token ya usado -> 401 | 401 | 401
+E1 | OK  | POST /auth/logout -> 204 | 204 | 204
+E1 | OK  | Refresh tras logout -> 401 | 401 | 401
+E2 | OK  | Total lo calcula el servidor (RTX 4090 no cuesta $1) | total=1599990 | 201 total=1599990
+E2 | OK  | Descuento enviado por el cliente se ignora | desc=0 total=650000 | 201 desc=0 total=650000
+E3 | OK  | CLIENTE alumno NO ve boleta 1 (de pancho) | 403 | 403
+E3 | OK  | CLIENTE NO busca boletas ajenas por número | 403 | 403
+E3 | OK  | CLIENTE SÍ ve su propia boleta | 200 | 200
+E3 | OK  | CLIENTE NO lista todos los detalles | 403 | 403
+E4 | OK  | Registro devuelve 201 con token | 201 + token CLIENTE | 201
+E4 | OK  | El usuario registrado puede iniciar sesión | 200 | 200
+E4 | OK  | Registro con email duplicado -> 409 | 409 | 409
+E4 | OK  | El registro público ignora rol=ADMIN | CLIENTE | CLIENTE
+E5 | OK  | Puerto de usuario-service NO accesible desde fuera | sin conexión | 0
+E5 | OK  | Puerto de categoria-service NO accesible desde fuera | sin conexión | 0
+E5 | OK  | Puerto de producto-service NO accesible desde fuera | sin conexión | 0
+E5 | OK  | Puerto de boleta-service NO accesible desde fuera | sin conexión | 0
+E5 | OK  | Puerto de detalle-service NO accesible desde fuera | sin conexión | 0
+E5 | OK  | Respuestas de usuarios sin passwordHash | sin hash | ok
+E13 | OK  | JWT forjado con el secreto antiguo del repo es rechazado | 401 | 401
+E8 | OK  | Compra rechazada NO descuenta stock (atomicidad) | 400 y stock=2 | 400 stock=2 'Stock insuficiente para: Prueba A-539431. Disponib'
+E9 | OK  | 20 compras simultáneas de 1 con stock 10: exactamente 10 éxitos | 10 x 201, stock 0 | 10 x 201, 10 x 400, stock=0
+E9 | OK  | 5 compras simultáneas del stock total: sólo 1 éxito | 1 x 201 | 1 x 201, stock=0
+E21 | OK  | Detalle semilla coincide con el producto 3 | RAM-CORSAIR-32G | RAM-CORSAIR-32G
+E10 | OK  | PUT /detalles/{id} (ADMIN) recalcula subtotal | 200 subtotal=18000 | 200 18000
+E10 | OK  | POST /detalles (ADMIN) | 201 | 201
+E10 | OK  | DELETE /detalles/{id} (ADMIN) | 204 | 204
+E10 | OK  | DELETE de boleta vigente -> 409 (hay que anularla antes) | 409 | 409
+E10 | OK  | PUT /boletas/{id} estado=ANULADA (ADMIN) | 200 | 200
+E10 | OK  | Anular repone el stock (8 -> 10) | 10 | 10
+E10 | OK  | Una boleta anulada no se reactiva -> 409 | 409 | 409
+E10 | OK  | DELETE /boletas/{id} anulada (ADMIN) | 204 | 204
+E11 | OK  | Swagger del gateway documenta el cuerpo de POST /productos | esquema con campos | {"application/json": {"schema": {"$ref": "#/components/schemas/ProductoRequest"}}}
+E11 | OK  | Swagger documenta /auth/refresh y /auth/logout | presentes | ok
+E12 | OK  | Validación: categoría sin nombre -> 400 | 400 | 400 Datos de entrada inválidos.
+E12 | OK  | Validación: producto incompleto -> 400 | 400 | 400 Datos de entrada inválidos.
+E12 | OK  | Validación: boleta sin items -> 400 | 400 | 400 Datos de entrada inválidos.
+E12 | OK  | JSON mal formado -> 400 | 400 | 400 El cuerpo de la petición no es un JSON válido o tiene tipos incorrectos.
+E12 | OK  | Login con clave incorrecta -> 401 | 401 | 401 Credenciales incorrectas.
+E12 | OK  | Login con email inexistente -> 401 (mismo mensaje) | 401 | 401 Credenciales incorrectas.
+E12 | OK  | ID no numérico -> 400 | 400 | 400
+E12 | OK  | SKU duplicado al crear -> 409 | 409 | 409
+E12 | OK  | SKU duplicado al actualizar -> 409 | 409 | 409 Ya existe otro producto con el SKU: GPU-RTX-4090FE
+E24 | OK  | Ruta inexistente /auth/no-existe -> 404 | 404 | 404
+E24 | OK  | Ruta inexistente /productos/1/no-existe -> 404 | 404 | 404
+E24 | OK  | Método no soportado -> 405 | 405 | 405
+E14 | OK  | Usuario desactivado NO puede iniciar sesión -> 403 | 403 | 403 La cuenta está desactivada. Contacte al administrador.
+E16 | OK  | Rechaza producto con categoría inexistente | 400 | 400 La categoría con ID 9999 no existe.
+E16 | OK  | No borra categoría que tiene productos -> 409 | 409 | 409 No se puede eliminar la categoría: tiene 1 producto(s) asoci
+E16 | OK  | No permite comprar producto inactivo -> 400 | 400 | 400 El producto 'Prueba IN-539431' no está disponible para la venta.
+E16 | OK  | Renombrar categoría actualiza nombreCategoria en productos | GPUs ... | GPUs 539431
+E17 | OK  | Crear usuario sin contraseña -> 400 | 400 | 400 La contraseña es obligatoria al crear un usuario.
+E17 | OK  | Rol inexistente -> 400 | 400 | 400 Rol inválido: SUPERADMIN. Valores permitidos: [ADM
+E22 | OK  | Consola H2 del gateway NO expuesta | 401/404 | 401
+E19 | OK  | Listado de boletas en 1 llamada a detalle-service | todas con detalle | 14 boletas, 29 ms
+F2 | OK  | Validar cupón semilla (minúsculas) como CLIENTE | 200 15% | 200 {'id': 1, 'codigo': 'HARDWARE2026', 'porcentaje': 15, 'descripcion': '15% de descuento especial hardware 2
+F2 | OK  | Validar cupón sin sesión -> 401 | 401 | 401
+F2 | OK  | Compra con cupón: descuento 15% calculado en servidor (ignora montos del cliente) | 201 199998-30000=169998 | 201 199998/30000/169998
+F2 | OK  | Cupón inexistente -> 400 y stock intacto | 400 stock 8 | 400 Código de descuento no válido o vencido. stock 8
+F2 | OK  | ADMIN crea cupón (se guarda en mayúsculas) | 201 | 201 {'id': 4, 'codigo': 'E2E539431', 'porcentaje': 20, 'descripcion': None, 'activo': True}
+F2 | OK  | Cupón desactivado -> 400 al pagar | 400 | 400 Código de descuento no válido o vencido.
+F2 | OK  | CLIENTE no lista ni crea cupones -> 403 | 403/403 | 403/403
+F2 | OK  | Cupón duplicado -> 409 | 409 | 409
+F2 | OK  | Cupón inválido -> 400 con detalles | 400 | 400 {'timestamp': '2026-11-24T16:57:38.110298928', 'status': 400, 'error': 'Datos de entrada inválidos.', 'det
+F2 | OK  | ADMIN elimina cupón -> 204 | 204 | 204
+
+TOTAL 106 | OK 106 | FALLA 0

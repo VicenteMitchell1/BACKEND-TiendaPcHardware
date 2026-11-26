@@ -6,6 +6,9 @@ target/
 ### Secretos (usar .env.example como plantilla) ###
 .env
 
+### Estado temporal de las pruebas E2E (contiene tokens de la ejecución) ###
+pruebas-e2e/estado.json
+
 ### IDEs ###
 .idea/
 *.iws

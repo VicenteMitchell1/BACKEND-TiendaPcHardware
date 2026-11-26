@@ -1,0 +1,3 @@
+E8 | OK  | No existen boletas sin detalles | 0 | 200 []
+
+TOTAL 1 | OK 1 | FALLA 0
